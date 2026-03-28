@@ -1,0 +1,136 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# ============================================================
+# Задача 3.3 — Метод наименьших квадратов
+# Вариант 28
+# Нужно:
+# 1) Найти приближающий многочлен 1-й степени
+# 2) Найти приближающий многочлен 2-й степени
+# 3) Для каждого вычислить сумму квадратов ошибок Φ
+# 4) Построить графики
+# ============================================================
+
+# Исходные данные
+x = np.array([-1.0, 0.0, 1.0, 2.0, 3.0, 5.0], dtype=float)
+y = np.array([-0.86603, 0.0, 0.86603, 1.0, 0.0, -4.3301], dtype=float)
+
+# ============================================================
+# Функция построения МНК-многочлена степени m
+# ============================================================
+def least_squares_fit(x, y, degree):
+    """
+    Возвращает коэффициенты многочлена степени degree
+    и значения многочлена в узлах x.
+    """
+    # Матрица Вандермонда
+    A = np.vander(x, degree + 1, increasing=True)
+
+    # Решение нормальной системы:
+    # (A^T A) c = A^T y
+    ATA = A.T @ A
+    ATy = A.T @ y
+    coeffs = np.linalg.solve(ATA, ATy)
+
+    # Значения многочлена в узлах
+    y_fit = A @ coeffs
+
+    # Сумма квадратов ошибок
+    phi = np.sum((y_fit - y) ** 2)
+
+    return coeffs, y_fit, phi
+
+
+def polynomial_to_string(coeffs):
+    """
+    Красивый вывод многочлена.
+    coeffs = [a0, a1, a2, ...]
+    """
+    terms = []
+    for i, c in enumerate(coeffs):
+        if abs(c) < 1e-12:
+            continue
+
+        if i == 0:
+            terms.append(f"{c:.6f}")
+        elif i == 1:
+            terms.append(f"{c:+.6f}*x")
+        else:
+            terms.append(f"{c:+.6f}*x^{i}")
+
+    return " ".join(terms) if terms else "0"
+
+
+def eval_poly(coeffs, x_vals):
+    """
+    Вычисление значений многочлена по коэффициентам
+    coeffs = [a0, a1, a2, ...]
+    """
+    result = np.zeros_like(x_vals, dtype=float)
+    for i, c in enumerate(coeffs):
+        result += c * (x_vals ** i)
+    return result
+
+
+# ============================================================
+# Многочлен 1-й степени
+# F1(x) = a0 + a1*x
+# ============================================================
+coeffs_1, y_fit_1, phi_1 = least_squares_fit(x, y, degree=1)
+
+# ============================================================
+# Многочлен 2-й степени
+# F2(x) = a0 + a1*x + a2*x^2
+# ============================================================
+coeffs_2, y_fit_2, phi_2 = least_squares_fit(x, y, degree=2)
+
+# ============================================================
+# Вывод результатов
+# ============================================================
+print("=" * 70)
+print("ЗАДАНИЕ 3.3 — МЕТОД НАИМЕНЬШИХ КВАДРАТОВ, ВАРИАНТ 28")
+print("=" * 70)
+
+print("\nИсходные данные:")
+for i in range(len(x)):
+    print(f"i = {i}, x[{i}] = {x[i]:.5f}, y[{i}] = {y[i]:.5f}")
+
+print("\n" + "=" * 70)
+print("Многочлен 1-й степени")
+print("=" * 70)
+print("F1(x) =", polynomial_to_string(coeffs_1))
+print(f"Сумма квадратов ошибок Φ1 = {phi_1:.10f}")
+
+print("\nЗначения F1(xi):")
+for i in range(len(x)):
+    print(f"x = {x[i]:.5f}, F1(x) = {y_fit_1[i]:.6f}, y = {y[i]:.6f}, "
+          f"(F1-y)^2 = {(y_fit_1[i] - y[i])**2:.10f}")
+
+print("\n" + "=" * 70)
+print("Многочлен 2-й степени")
+print("=" * 70)
+print("F2(x) =", polynomial_to_string(coeffs_2))
+print(f"Сумма квадратов ошибок Φ2 = {phi_2:.10f}")
+
+print("\nЗначения F2(xi):")
+for i in range(len(x)):
+    print(f"x = {x[i]:.5f}, F2(x) = {y_fit_2[i]:.6f}, y = {y[i]:.6f}, "
+          f"(F2-y)^2 = {(y_fit_2[i] - y[i])**2:.10f}")
+
+# ============================================================
+# Построение графиков
+# ============================================================
+x_plot = np.linspace(min(x) - 0.5, max(x) + 0.5, 500)
+y_plot_1 = eval_poly(coeffs_1, x_plot)
+y_plot_2 = eval_poly(coeffs_2, x_plot)
+
+plt.figure(figsize=(10, 6))
+plt.plot(x, y, 'o', label='Табличные данные')
+plt.plot(x_plot, y_plot_1, label='МНК-многочлен 1-й степени')
+plt.plot(x_plot, y_plot_2, label='МНК-многочлен 2-й степени')
+plt.xlabel('x')
+plt.ylabel('y')
+plt.title('Задача 3.3, вариант 28 — Метод наименьших квадратов')
+plt.grid(True)
+plt.legend()
+plt.show()

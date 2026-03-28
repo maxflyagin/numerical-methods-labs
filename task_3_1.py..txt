@@ -1,0 +1,169 @@
+import sympy as sp
+
+# ============================================================
+# Задача 3.1, вариант 28
+# y = x*cos(x), X* = pi/4
+# Нужно:
+# 1) Построить интерполяционные многочлены Лагранжа и Ньютона
+# 2) Найти значение в точке X*
+# 3) Найти абсолютную погрешность
+# 4) Сравнить с оценкой по формуле (3.9)
+# ============================================================
+
+x = sp.symbols('x')
+f = x * sp.cos(x)
+x_star = sp.pi / 4
+
+
+def lagrange_polynomial(x_nodes, y_nodes, var):
+    """Построение многочлена Лагранжа."""
+    n = len(x_nodes)
+    L = 0
+    for i in range(n):
+        li = 1
+        for j in range(n):
+            if i != j:
+                li *= (var - x_nodes[j]) / (x_nodes[i] - x_nodes[j])
+        L += y_nodes[i] * li
+    return sp.expand(sp.simplify(L))
+
+
+def divided_differences(x_nodes, y_nodes):
+    """Таблица разделённых разностей."""
+    n = len(x_nodes)
+    table = [[0 for _ in range(n)] for _ in range(n)]
+
+    for i in range(n):
+        table[i][0] = sp.simplify(y_nodes[i])
+
+    for j in range(1, n):
+        for i in range(n - j):
+            table[i][j] = sp.simplify(
+                (table[i + 1][j - 1] - table[i][j - 1]) / (x_nodes[i + j] - x_nodes[i])
+            )
+    return table
+
+
+def newton_polynomial(x_nodes, y_nodes, var):
+    """Построение многочлена Ньютона через разделённые разности."""
+    table = divided_differences(x_nodes, y_nodes)
+    n = len(x_nodes)
+
+    P = table[0][0]
+    term = 1
+
+    for j in range(1, n):
+        term *= (var - x_nodes[j - 1])
+        P += table[0][j] * term
+
+    return sp.expand(sp.simplify(P)), table
+
+
+def omega(var, x_nodes):
+    """ω_n(x) = ∏(x - x_i)."""
+    w = 1
+    for xi in x_nodes:
+        w *= (var - xi)
+    return sp.expand(sp.simplify(w))
+
+
+def solve_case(case_name, x_nodes):
+    print("=" * 70)
+    print(f"СЛУЧАЙ {case_name}")
+    print("=" * 70)
+
+    y_nodes = [sp.simplify(f.subs(x, xi)) for xi in x_nodes]
+
+    print("Узлы интерполяции:")
+    for i, xi in enumerate(x_nodes):
+        print(f"x{i} = {sp.simplify(xi)}")
+
+    print("\nЗначения функции в узлах:")
+    for i, yi in enumerate(y_nodes):
+        print(f"y{i} = f(x{i}) = {sp.simplify(yi)} ≈ {sp.N(yi, 10)}")
+
+    # Многочлен Лагранжа
+    L = lagrange_polynomial(x_nodes, y_nodes, x)
+
+    # Многочлен Ньютона
+    N_poly, dd_table = newton_polynomial(x_nodes, y_nodes, x)
+
+    print("\nМногочлен Лагранжа:")
+    print("L3(x) =", L)
+
+    print("\nТаблица разделённых разностей:")
+    n = len(x_nodes)
+    for j in range(n):
+        values = []
+        for i in range(n - j):
+            values.append(str(sp.simplify(dd_table[i][j])))
+        print(f"Порядок {j}: {values}")
+
+    print("\nМногочлен Ньютона:")
+    print("P3(x) =", N_poly)
+
+    # Проверка совпадения
+    print("\nПроверка L3(x) - P3(x):")
+    print(sp.simplify(L - N_poly))
+
+    # Значение в X*
+    exact_value = sp.simplify(f.subs(x, x_star))
+    interp_value = sp.simplify(L.subs(x, x_star))
+    abs_error = sp.simplify(abs(exact_value - interp_value))
+
+    print(f"\nТочное значение f(pi/4) = {exact_value} ≈ {sp.N(exact_value, 12)}")
+    print(f"Интерполяционное значение P3(pi/4) = {interp_value} ≈ {sp.N(interp_value, 12)}")
+    print(f"Абсолютная погрешность Δ = |f(X*) - P3(X*)| = {abs_error} ≈ {sp.N(abs_error, 12)}")
+
+    # Оценка погрешности по формуле (3.9)
+    # |ε3(x)| <= M4 / 4! * |ω4(x)|
+    f4 = sp.diff(f, x, 4)
+    w = omega(x, x_nodes)
+    w_star = sp.simplify(w.subs(x, x_star))
+
+    print("\nЧетвёртая производная:")
+    print("f''''(x) =", sp.simplify(f4))
+
+    print("\nω4(x) =", w)
+    print(f"ω4(pi/4) = {w_star} ≈ {sp.N(w_star, 12)}")
+
+    # Для численной оценки M4 на отрезке [min(x_i), max(x_i)]
+    a = min(x_nodes)
+    b = max(x_nodes)
+
+    # Численно ищем максимум |f''''(x)| на сетке
+    import numpy as np
+    f4_num = sp.lambdify(x, sp.Abs(f4), "numpy")
+    a_num = float(sp.N(a))
+    b_num = float(sp.N(b))
+    grid = np.linspace(a_num, b_num, 10000)
+    M4_num = np.max(f4_num(grid))
+
+    estimate = M4_num / sp.factorial(4) * abs(float(sp.N(w_star)))
+
+    print(f"\nОтрезок оценки: [{sp.N(a, 6)}, {sp.N(b, 6)}]")
+    print(f"M4 = max |f''''(x)| ≈ {M4_num:.10f}")
+    print(f"Оценка погрешности по (3.9):")
+    print(f"|ε3(X*)| <= M4/4! * |ω4(X*)| ≈ {estimate:.12f}")
+
+    print("\nСравнение:")
+    print(f"Фактическая погрешность   ≈ {float(sp.N(abs_error)):.12f}")
+    print(f"Теоретическая оценка      ≈ {estimate:.12f}")
+    print(f"Условие Δ <= оценка: {float(sp.N(abs_error)) <= estimate}")
+    print()
+
+
+# -------------------------------
+# Вариант 28a
+# x = 0, pi/6, 2pi/6, 3pi/6
+# -------------------------------
+x_nodes_a = [0, sp.pi/6, sp.pi/3, sp.pi/2]
+
+# -------------------------------
+# Вариант 28б
+# x = 0, pi/6, 5pi/12, pi/2
+# -------------------------------
+x_nodes_b = [0, sp.pi/6, 5*sp.pi/12, sp.pi/2]
+
+solve_case("28a", x_nodes_a)
+solve_case("28б", x_nodes_b)
